@@ -150,7 +150,7 @@ bool all_weights_one(const Constraint& c){
 }
 
 
-static void seqcounter_geq(const std::vector<int>& X, int k, CNF& cnf) {
+void seqcounter_geq(const std::vector<int>& X, int k, CNF& cnf) {
     const int n = (int)X.size();
     if (k <= 0) return;                  // trivially true
     if (k > n) { cnf.addClause({}); return; } // unsat
@@ -179,6 +179,141 @@ static void seqcounter_geq(const std::vector<int>& X, int k, CNF& cnf) {
     cnf.addClause({ s[n][k] }); 
 }
 
+pair<int,int> full_adder(int x, int y, int z, CNF& cnf){
+    int s = cnf.newVar();   // s_out
+    int c = cnf.newVar();   // c_out
+
+    // c is majority(x,y,z)
+    cnf.addClause({ -x, -y,  c });
+    cnf.addClause({ -x, -z,  c });
+    cnf.addClause({ -y, -z,  c });
+    cnf.addClause({  x,  y, -c });
+    cnf.addClause({  x,  z, -c });
+    cnf.addClause({  y,  z, -c });
+
+    // s = x XOR y XOR z  (two XORs: t = x XOR y; s = t XOR z)
+    int t = cnf.newVar();
+    // t ↔ x XOR y
+    cnf.addClause({ -t, -x, -y });
+    cnf.addClause({ -t,  x,  y });
+    cnf.addClause({  t, -x,  y });
+    cnf.addClause({  t,  x, -y });
+    // s ↔ t XOR z
+    cnf.addClause({ -s, -t, -z });
+    cnf.addClause({ -s,  t,  z });
+    cnf.addClause({  s, -t,  z });
+    cnf.addClause({  s,  t, -z });
+
+    return {s,c};
+}
+
+// Half adder 
+static pair<int,int> half_adder(int x, int y, CNF& cnf){
+    int s = cnf.newVar();
+    int c = cnf.newVar();
+    // c = x & y
+    cnf.addClause({ -x, -y,  c });
+    cnf.addClause({  x, -c });
+    cnf.addClause({  y, -c });
+    // s = x XOR y
+    cnf.addClause({ -s, -x, -y });
+    cnf.addClause({ -s,  x,  y });
+    cnf.addClause({  s, -x,  y });
+    cnf.addClause({  s,  x, -y });
+    return {s,c};
+}
+
+
+vector<int> build_sum_bits(const vector<pair<int,int>>& wlits, CNF& cnf){
+    // max bit-width
+    int B = 0;
+    long long sumW = 0;
+    for (auto& p: wlits){
+        sumW += p.second;
+    }
+    while ((1LL<<B) <= sumW)
+        ++B;
+    if (B==0)
+        B=1;
+
+    vector<vector<int>> cols(B+2);          
+
+    // scatter weighted literals into bit-columns
+    for (auto& [L,w] : wlits){
+        int w1 = w;
+        for (int j=0; w; ++j, w1 >>= 1){
+            if (w & 1) cols[j].push_back(L);
+        }
+    }
+
+    // full adders for triples, half adders for pairs
+    for (int j=0; j<B+1; ++j){
+        // while >=3 bits -> full adder
+        while ((int)cols[j].size() >= 3){
+            int x = cols[j].back(); cols[j].pop_back();
+            int y = cols[j].back(); cols[j].pop_back();
+            int z = cols[j].back(); cols[j].pop_back();
+            auto [s,c] = full_adder(x,y,z, cnf);
+            cols[j].push_back( s );
+            cols[j+1].push_back( c );
+        }
+        // if exactly 2 bits -> half adder
+        if ((int)cols[j].size() == 2){
+            int x = cols[j].back(); cols[j].pop_back();
+            int y = cols[j].back(); cols[j].pop_back();
+            auto [s,c] = half_adder(x,y, cnf);
+            cols[j].push_back( s );
+            cols[j+1].push_back( c );
+        }
+    }
+
+    // Collect S: one bit per column (missing bit means 0)
+    vector<int> S(B+1, 0);
+    for (int j=0; j<=B; ++j){
+        if (!cols[j].empty()) S[j] = cols[j].back();   // the remaining bit
+        // else S[j] = 0 (implicit constant 0)
+    }
+    return S;  // little-endian, S[0] = LSB
+}
+
+
+
+static int ge_constant(const vector<int>& S, long long k, CNF& cnf){
+    int B = (int)S.size();
+    vector<int> b(B+1, 0);
+    for (int j=0; j<B; ++j){
+        b[j+1] = cnf.newVar();   
+        int s = S[j];            
+        int kj = (k >> j) & 1;
+
+        if (kj == 0){
+            if (s != 0) 
+                cnf.addClause({s, -b[j], -b[j+1]});
+            else
+                cnf.addClause({-b[j], -b[j+1]});
+
+            cnf.addClause({b[j], -b[j+1] });
+
+            if (s != 0) 
+                cnf.addClause({-s, b[j+1]});
+        
+        } else {
+            // (1) ( s ∨ b_out )
+            // (2) ( ¬b_in ∨ b_out )
+            // (3) ( ¬s ∨ b_in ∨ ¬b_out )
+            if (s != 0) cnf.addClause({s, b[j+1]});
+            else        cnf.addClause({b[j+1]});
+            cnf.addClause({-b[j], b[j+1]});
+            if (s != 0) cnf.addClause({-s, b[j], -b[j+1]});
+        }
+    }
+    int ge = cnf.newVar();
+    cnf.addClause({  ge,  b[B] });
+    cnf.addClause({ -ge, -b[B] });
+    return ge;
+}
+
+
 int main() {
     string line;
     getline(cin, line);
@@ -201,17 +336,33 @@ int main() {
             cerr << "Expected canonical >= only\n";
             continue; 
         }
-        if (!all_weights_one(c)) {
-            cerr << "Non-unit weights not supported by sequential counter yet\n";
-            continue; 
-        }
-        vector<int> X; 
-        X.reserve(c.terms.size());
-        for (auto& t : c.terms) 
-            X.push_back(to_lit(t, st, cnf));
+        if (all_weights_one(c)) {
+            vector<int> X; 
+            X.reserve(c.terms.size());
+            for (auto& t : c.terms) 
+                X.push_back(to_lit(t, st, cnf));
 
-        seqcounter_geq(X, c.k, cnf);
-    } 
+            seqcounter_geq(X, c.k, cnf);
+        }
+        else {
+            // Build weighted literals from your Constraint
+            vector<pair<int,int>> wlits;
+            wlits.reserve(c.terms.size());
+            for (auto& t : c.terms){
+                int v = st.get(t.var, cnf);
+                int L = t.neg ? -v : v;
+                wlits.emplace_back(L, t.w);   // (literal, weight)
+            }
+
+            vector<int> S = build_sum_bits(wlits, cnf);
+
+            int g = ge_constant(S, c.k, cnf);
+
+            cnf.addClause({ g });
+        }
+        
+    }
+    
 
 
     std::ofstream fout("output.cnf");
