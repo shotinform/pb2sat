@@ -1,8 +1,11 @@
 #include <bits/stdc++.h>
+#include <vector>
 using namespace std;
 
 struct Term { string var; bool neg; int w; };
 struct Constraint { vector<Term> terms; string cmp; int k; };
+
+vector<Constraint> constraints;
 
 Constraint parse_line(const string& line) {
     size_t pos;
@@ -48,17 +51,57 @@ Constraint parse_line(const string& line) {
     return Constraint{terms, cmp, k};
 }
 
-void normalize(Constraint &c) {
+vector<Constraint> to_geq(const Constraint& c) {
+    long long sumW = 0;
+    for (auto& t : c.terms) sumW += t.w;
+
+    if (c.cmp == ">=") {
+        return {c}; // already ≥
+    } else if (c.cmp == "<=") {
+        Constraint nc;
+        nc.cmp = ">=";
+        nc.k = sumW - c.k;
+        for (auto& t : c.terms) {
+            nc.terms.push_back({t.var, !t.neg, t.w}); // flip literal
+        }
+        return {nc};
+    } else if (c.cmp == "=") {
+        Constraint c1 = c; c1.cmp = ">="; c1.k = c.k;
+        Constraint c2; c2.cmp = ">="; c2.k = sumW - c.k;
+        for (auto& t : c.terms) c2.terms.push_back({t.var, !t.neg, t.w});
+        return {c1, c2};
+    }
+    throw runtime_error("Unknown comparator");
+}
+
+void normalize_inplace(Constraint &c) {
     vector<Term> out;
     for (auto &t : c.terms) {
         if (t.w >= 0) out.push_back(t);
         else {
             int w = -t.w;
             out.push_back({t.var, !t.neg, w});
-            c.k -= w;
+            c.k += w;
         }
     }
     c.terms.swap(out);
+}
+
+void process_and_store(Constraint& c) {
+    normalize_inplace(c);
+    std::vector<Constraint> geqs = to_geq(c);
+    for (const auto& g : geqs) constraints.push_back(g); // simple copies
+}
+
+void print_constraint(const Constraint& c){
+    for (auto &t : c.terms)
+        cout << t.w << "*" << (t.neg ? "~" : "") << t.var << "  ";
+    cout << c.cmp << " " << c.k << "\n";
+}
+
+void print_all_constraints(){
+    for (auto& c : constraints)
+        print_constraint(c);
 }
 
 int main() {
@@ -66,12 +109,12 @@ int main() {
     getline(cin, line);
     try {
         auto c = parse_line(line);
-        normalize(c);
-
-        for (auto &t : c.terms)
-            cout << t.w << "*" << (t.neg ? "~" : "") << t.var << "  ";
-        cout << c.cmp << " " << c.k << "\n";
+        cout << "Parsed constraint" << endl;
+        print_constraint(c);
+    
+        process_and_store(c);        
     } catch (exception &e) {
         cerr << "Error: " << e.what() << "\n";
     }
+    print_all_constraints();
 }
