@@ -248,7 +248,7 @@ vector<int> build_sum_bits(const vector<pair<int,int>>& wlits, CNF& cnf){
     for (auto& [L,w] : wlits){
         int w1 = w;
         for (int j=0; w1; ++j, w1 >>= 1){
-            if (w & 1) cols[j].push_back(L);
+            if (w1 & 1) cols[j].push_back(L);
         }
     }
 
@@ -284,33 +284,40 @@ vector<int> build_sum_bits(const vector<pair<int,int>>& wlits, CNF& cnf){
 
 
 
-static int ge_constant(const vector<int>& S, long long k, CNF& cnf){
+int ge_constant(const vector<int>& S, long long k, CNF& cnf){
     int B = (int)S.size();
+    
     vector<int> b(B+1, 0);
+    b[0] = cnf.newVar();
+    cnf.addClause({ -b[0] }); // b0 = 0
+
     for (int j=0; j<B; ++j){
         b[j+1] = cnf.newVar();   
         int s = S[j];            
         int kj = (k >> j) & 1;
 
         if (kj == 0){
-            if (s != 0) 
-                cnf.addClause({s, -b[j], -b[j+1]});
-            else
-                cnf.addClause({-b[j], -b[j+1]});
-
-            cnf.addClause({b[j], -b[j+1] });
-
-            if (s != 0) 
-                cnf.addClause({-s, b[j+1]});
-        
+            if (s == 0){
+                // bout <-> b_in
+                cnf.addClause({-b[j+1], b[j]});
+                cnf.addClause({b[j+1], -b[j]});
+            }
+            else {
+                // bout <-> (~s & b_in)
+                cnf.addClause({ -s, -b[j+1] });   
+                cnf.addClause({ -b[j+1],  b[j] });  
+                cnf.addClause({ s, -b[j], b[j+1] });
+            }
         } else {
-            // (1) ( s ∨ b_out )
-            // (2) ( ¬b_in ∨ b_out )
-            // (3) ( ¬s ∨ b_in ∨ ¬b_out )
-            if (s != 0) cnf.addClause({s, b[j+1]});
-            else        cnf.addClause({b[j+1]});
-            cnf.addClause({-b[j], b[j+1]});
-            if (s != 0) cnf.addClause({-s, b[j], -b[j+1]});
+            if (s == 0) {
+                // b_out = true
+                cnf.addClause({ b[j + 1] }); // unit: b_out = true
+            } else {
+                // b_out -> (~s | b_in)
+                cnf.addClause({ -b[j + 1], -s,  b[j] });
+                cnf.addClause({  s,  b[j + 1] });
+                cnf.addClause({ -b[j],  b[j + 1] });
+            }
         }
     }
     int ge = cnf.newVar();
