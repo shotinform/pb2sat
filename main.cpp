@@ -30,7 +30,8 @@ struct SymTab {
 
     int get(const string& v, CNF& cnf) {
         auto it = id.find(v);
-        if (it != id.end()) return it->second;
+        if (it != id.end()) 
+            return it->second;
         int vid = cnf.newVar();
         id.emplace(v, vid);
         return vid;
@@ -176,6 +177,11 @@ void seqcounter_geq(const std::vector<int>& X, int k, CNF& cnf) {
         for (int j = 1; j <= J-1; ++j) cnf.addClause({  s[i-1][j], s[i-1][j+1], -s[i][j+1] });
     }
 
+    if (k == 1) {                
+        for (int i = 2; i <= n; ++i)
+            cnf.addClause({ -s[i][1], s[i-1][1], X[i-1] });
+    }
+
     cnf.addClause({ s[n][k] }); 
 }
 
@@ -241,7 +247,7 @@ vector<int> build_sum_bits(const vector<pair<int,int>>& wlits, CNF& cnf){
     // scatter weighted literals into bit-columns
     for (auto& [L,w] : wlits){
         int w1 = w;
-        for (int j=0; w; ++j, w1 >>= 1){
+        for (int j=0; w1; ++j, w1 >>= 1){
             if (w & 1) cols[j].push_back(L);
         }
     }
@@ -337,6 +343,7 @@ int main() {
             continue; 
         }
         if (all_weights_one(c)) {
+            cout << "All weights are 1" << endl;
             vector<int> X; 
             X.reserve(c.terms.size());
             for (auto& t : c.terms) 
@@ -362,9 +369,6 @@ int main() {
         }
         
     }
-    
-
-
     std::ofstream fout("output.cnf");
     if (!fout) {
         cerr << "Error opening output.cnf for writing\n";
