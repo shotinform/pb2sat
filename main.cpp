@@ -177,10 +177,10 @@ void seqcounter_geq(const std::vector<int>& X, int k, CNF& cnf) {
         for (int j = 1; j <= J-1; ++j) cnf.addClause({  s[i-1][j], s[i-1][j+1], -s[i][j+1] });
     }
 
-    if (k == 1) {                
-        for (int i = 2; i <= n; ++i)
-            cnf.addClause({ -s[i][1], s[i-1][1], X[i-1] });
-    }
+                    
+    for (int i = 2; i <= n; ++i)
+        cnf.addClause({ -s[i][1], s[i-1][1], X[i-1] });
+
 
     cnf.addClause({ s[n][k] }); 
 }
@@ -383,6 +383,8 @@ int main() {
     }
     cnf.dumpDIMACS(fout);
     fout.close();
+
+    
 
     return 0;
 }
