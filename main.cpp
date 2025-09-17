@@ -328,16 +328,18 @@ int ge_constant(const vector<int>& S, long long k, CNF& cnf){
 
 
 int main() {
-    string line;
-    getline(cin, line);
-    try {
-        auto c = parse_line(line);
-        cout << "Parsed constraint" << endl;
-        print_constraint(c);
     
-        process_and_store(c);        
-    } catch (exception &e) {
-        cerr << "Error: " << e.what() << "\n";
+    string line;
+    while (getline(cin, line)) {   // keep reading until EOF
+        try {
+            auto c = parse_line(line);
+            cout << "Parsed constraint" << endl;
+            print_constraint(c);
+
+            process_and_store(c);
+        } catch (exception &e) {
+            cerr << "Error: " << e.what() << "\n";
+        }
     }
     print_all_constraints();
 
