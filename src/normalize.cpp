@@ -5,7 +5,7 @@
 
 namespace satenc {
     
-    Constraint Normalizer::parse_line(const string& line) {
+    Constraint Normalizer::parse_line(const string& line, set<string>& var_names) {
         size_t pos;
         string cmp;
         if ((pos = line.find("<=")) != string::npos) cmp = "<=";
@@ -41,6 +41,8 @@ namespace satenc {
                 litneg = true;
                 var = var.substr(1);
             }
+
+            var_names.insert(var);
 
             terms.push_back({var, litneg, sign * w});
         }

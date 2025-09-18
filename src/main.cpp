@@ -2,13 +2,13 @@
 #include <vector>
 #include <unordered_map>
 #include <fstream>
+#include <set>
 
 #include "normalize.hpp"
 #include "core.hpp"
 
 using namespace std;
 using namespace satenc; 
-
 
 
 void process_and_store(Constraint& c, Normalizer& n, vector<Constraint>& constraints) {
@@ -18,7 +18,7 @@ void process_and_store(Constraint& c, Normalizer& n, vector<Constraint>& constra
 }
 
 void encode_seqcounter(const Constraint& c, SymTab& st, CNF& cnf, SeqCounter& sc){
-    cout << "All weights are 1" << endl;
+    //cout << "All weights are 1" << endl;
     vector<int> X; 
     X.reserve(c.terms.size());
     for (auto& t : c.terms) 
@@ -49,18 +49,20 @@ int main() {
     Normalizer n;
     vector<Constraint> constraints;
     string line;
+    set<string> var_names;
 
     while (getline(cin, line)) {   // keep reading until EOF
         try {
-            auto c = n.parse_line(line);
-            cout << "Parsed constraint" << endl;
-            print_constraint(c);
+            auto c = n.parse_line(line, var_names);
+            //print_constraint(c);
 
             process_and_store(c, n, constraints);
         } catch (exception &e) {
             cerr << "Error: " << e.what() << "\n";
         }
     }
+
+    cout << endl << "Normalized constraints: " << endl;
     print_all_constraints(constraints);
 
     CNF cnf;
@@ -81,6 +83,12 @@ int main() {
         }
         
     }
+
+    cout << endl << "Vars mapping:" << endl; 
+    for (const auto& name: var_names)
+        cout << name << " -> " << st.get(name, cnf) << " ";
+    cout << endl;
+
     std::ofstream fout("output.cnf");
     if (!fout) {
         cerr << "Error opening output.cnf for writing\n";
@@ -88,6 +96,7 @@ int main() {
     }
     cnf.dumpDIMACS(fout);
     fout.close();
+    cout << endl << "Output CNF has been written to output.txt" << endl;
 
     return 0;
 }
