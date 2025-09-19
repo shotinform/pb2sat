@@ -42,7 +42,7 @@ namespace satenc{
     class SeqCounter {
         
     public:
-        void seqcounter_geq(const std::vector<int>& X, int k, CNF& cnf);
+        void geq(const std::vector<int>& X, int k, CNF& cnf);
     };
 
     class AdderNetwork{

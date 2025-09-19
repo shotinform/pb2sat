@@ -3,7 +3,7 @@
 using namespace std;
 
 namespace satenc{
-    void SeqCounter::seqcounter_geq(const std::vector<int>& X, int k, CNF& cnf) {
+    void SeqCounter::geq(const std::vector<int>& X, int k, CNF& cnf) {
         const int n = (int)X.size();
         if (k <= 0) return;                  // trivially true
         if (k > n) { cnf.addClause({}); return; } // unsat

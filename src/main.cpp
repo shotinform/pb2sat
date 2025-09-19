@@ -24,7 +24,7 @@ void encode_seqcounter(const Constraint& c, SymTab& st, CNF& cnf, SeqCounter& sc
     for (auto& t : c.terms) 
         X.push_back(to_lit(t, st, cnf));
 
-    sc.seqcounter_geq(X, c.k, cnf);
+    sc.geq(X, c.k, cnf);
 }
 
 void encode_adder_networks(const Constraint& c, SymTab& st, CNF& cnf, AdderNetwork& an){
