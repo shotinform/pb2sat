@@ -11,6 +11,8 @@ namespace satenc {
         if ((pos = line.find("<=")) != string::npos) cmp = "<=";
         else if ((pos = line.find(">=")) != string::npos) cmp = ">=";
         else if ((pos = line.find("=")) != string::npos) cmp = "=";
+        else if ((pos = line.find(">")) != string::npos) cmp = ">";
+        else if ((pos = line.find("<")) != string::npos) cmp = "<";
         else throw runtime_error("No comparator");
 
         string lhs = line.substr(0, pos);
@@ -64,7 +66,15 @@ namespace satenc {
         c.terms.swap(out);
     }
 
-    vector<Constraint> Normalizer::to_geq(const Constraint& c) {
+    Constraint desugar_strict(Constraint c) {
+        if (c.cmp == ">") { c.cmp = ">="; c.k += 1; }
+        else if (c.cmp == "<") { c.cmp = "<="; c.k -= 1; }
+        return c;
+    }
+
+    vector<Constraint> Normalizer::to_geq(const Constraint& c_in) {
+        Constraint c = desugar_strict(c_in);
+
         long long sumW = 0;
         for (auto& t : c.terms) sumW += t.w;
 

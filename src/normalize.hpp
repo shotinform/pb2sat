@@ -11,7 +11,7 @@ namespace satenc{
     public:
         Constraint parse_line(const string& line, set<string>& var_names);
         void normalize_inplace(Constraint &c);
-        vector<Constraint> to_geq(const Constraint& c);
+        vector<Constraint> to_geq(const Constraint& c_in);
     };
 
 }
