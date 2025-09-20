@@ -47,6 +47,7 @@ namespace satenc {
             var_names.insert(var);
 
             terms.push_back({var, litneg, sign * w});
+            sign = 1;
         }
 
         int k = stoi(rhs);
